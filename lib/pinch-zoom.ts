@@ -30,6 +30,7 @@ interface SetTransformOpts extends ChangeOptions {
 type ScaleRelativeToValues = 'container' | 'content';
 
 const minScaleAttr = 'min-scale';
+const maxScaleAttr = 'max-scale';
 
 export interface ScaleToOpts extends ChangeOptions {
   /** Transform origin. Can be a number, or string percent, eg "50%" */
@@ -57,7 +58,7 @@ function getMidpoint(a: Point, b?: Point): Point {
 function getAbsoluteValue(value: string | number, max: number): number {
   if (typeof value === 'number') return value;
 
-  if (value.trimRight().endsWith('%')) {
+  if (value.trim().endsWith('%')) {
     return max * parseFloat(value) / 100;
   }
   return parseFloat(value);
@@ -80,6 +81,7 @@ function createPoint(): SVGPoint {
 }
 
 const MIN_SCALE = 0.01;
+const MAX_SCALE = 999;
 
 export default class PinchZoom extends HTMLElement {
   // The element that we'll transform.
@@ -89,7 +91,7 @@ export default class PinchZoom extends HTMLElement {
   // Current transform.
   private _transform: SVGMatrix = createMatrix();
 
-  static get observedAttributes() { return [minScaleAttr]; }
+  static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
 
   constructor() {
     super();
@@ -116,10 +118,15 @@ export default class PinchZoom extends HTMLElement {
     this.addEventListener('wheel', event => this._onWheel(event));
   }
 
-  attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+  async attributeChangedCallback(name: string, oldValue: string, newValue: string) {
     if (name === minScaleAttr) {
       if (this.scale < this.minScale) {
-        this.setTransform({scale: this.minScale});
+        this.setTransform({ scale: this.minScale });
+      }
+    }
+    if (name === maxScaleAttr) {
+      if (this.scale > this.maxScale) {
+        this.setTransform({ scale: this.maxScale });
       }
     }
   }
@@ -136,6 +143,20 @@ export default class PinchZoom extends HTMLElement {
 
   set minScale(value: number) {
     this.setAttribute(minScaleAttr, String(value));
+  }
+
+  get maxScale(): number {
+    const attrValue = this.getAttribute(maxScaleAttr);
+    if (!attrValue) return MAX_SCALE;
+
+    const value = parseFloat(attrValue);
+    if (Number.isFinite(value)) return Math.max(MAX_SCALE, value);
+
+    return MAX_SCALE;
+  }
+
+  set maxScale(value: number) {
+    this.setAttribute(maxScaleAttr, String(value));
   }
 
   connectedCallback() {
@@ -185,8 +206,10 @@ export default class PinchZoom extends HTMLElement {
       originY += this.y;
     } else {
       const currentRect = this._positioningEl.getBoundingClientRect();
-      originX -= currentRect.left;
-      originY -= currentRect.top;
+      const containerRect = this.getBoundingClientRect();
+
+      originX -= currentRect.left - containerRect.left;
+      originY -= currentRect.top - containerRect.top;
     }
 
     this._applyChange({
@@ -269,19 +292,26 @@ export default class PinchZoom extends HTMLElement {
    * Update transform values without checking bounds. This is only called in setTransform.
    */
   private _updateTransform(scale: number, x: number, y: number, allowChangeEvent: boolean) {
+    let newScale = scale;
+
     // Avoid scaling to zero
-    if (scale < this.minScale) return;
+    if (newScale < this.minScale) {
+      newScale = this.minScale;
+    }
+    if (newScale > this.maxScale) {
+      newScale = this.maxScale;
+    }
 
     // Return if there's no change
     if (
-      scale === this.scale &&
+      newScale === this.scale &&
       x === this.x &&
       y === this.y
     ) return;
 
     this._transform.e = x;
     this._transform.f = y;
-    this._transform.d = this._transform.a = scale;
+    this._transform.d = this._transform.a = newScale;
 
     this.style.setProperty('--x', this.x + 'px');
     this.style.setProperty('--y', this.y + 'px');

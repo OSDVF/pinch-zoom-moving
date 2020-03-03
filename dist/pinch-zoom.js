@@ -212,10 +212,11 @@ var PinchZoom = (function () {
       }
     }
 
-    var css = "pinch-zoom {\n  display: block;\n  overflow: hidden;\n  touch-action: none;\n  --scale: 1;\n  --x: 0;\n  --y: 0;\n}\n\npinch-zoom > * {\n  transform: translate(var(--x), var(--y)) scale(var(--scale));\n  transform-origin: 0 0;\n  will-change: transform;\n}\n";
+    var css = "pinch-zoom {\r\n  display: block;\r\n  overflow: hidden;\r\n  touch-action: none;\r\n  --scale: 1;\r\n  --x: 0;\r\n  --y: 0;\r\n}\r\n\r\npinch-zoom > * {\r\n  transform: translate(var(--x), var(--y)) scale(var(--scale));\r\n  transform-origin: 0 0;\r\n  will-change: transform;\r\n}\r\n";
     styleInject(css);
 
     const minScaleAttr = 'min-scale';
+    const maxScaleAttr = 'max-scale';
     function getDistance(a, b) {
         if (!b)
             return 0;
@@ -232,7 +233,7 @@ var PinchZoom = (function () {
     function getAbsoluteValue(value, max) {
         if (typeof value === 'number')
             return value;
-        if (value.trimRight().endsWith('%')) {
+        if (value.trim().endsWith('%')) {
             return max * parseFloat(value) / 100;
         }
         return parseFloat(value);
@@ -250,6 +251,7 @@ var PinchZoom = (function () {
         return getSVG().createSVGPoint();
     }
     const MIN_SCALE = 0.01;
+    const MAX_SCALE = 999;
     class PinchZoom extends HTMLElement {
         constructor() {
             super();
@@ -275,11 +277,16 @@ var PinchZoom = (function () {
             });
             this.addEventListener('wheel', event => this._onWheel(event));
         }
-        static get observedAttributes() { return [minScaleAttr]; }
-        attributeChangedCallback(name, oldValue, newValue) {
+        static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
+        async attributeChangedCallback(name, oldValue, newValue) {
             if (name === minScaleAttr) {
                 if (this.scale < this.minScale) {
                     this.setTransform({ scale: this.minScale });
+                }
+            }
+            if (name === maxScaleAttr) {
+                if (this.scale > this.maxScale) {
+                    this.setTransform({ scale: this.maxScale });
                 }
             }
         }
@@ -294,6 +301,18 @@ var PinchZoom = (function () {
         }
         set minScale(value) {
             this.setAttribute(minScaleAttr, String(value));
+        }
+        get maxScale() {
+            const attrValue = this.getAttribute(maxScaleAttr);
+            if (!attrValue)
+                return MAX_SCALE;
+            const value = parseFloat(attrValue);
+            if (Number.isFinite(value))
+                return Math.max(MAX_SCALE, value);
+            return MAX_SCALE;
+        }
+        set maxScale(value) {
+            this.setAttribute(maxScaleAttr, String(value));
         }
         connectedCallback() {
             this._stageElChange();
@@ -328,8 +347,9 @@ var PinchZoom = (function () {
             }
             else {
                 const currentRect = this._positioningEl.getBoundingClientRect();
-                originX -= currentRect.left;
-                originY -= currentRect.top;
+                const containerRect = this.getBoundingClientRect();
+                originX -= currentRect.left - containerRect.left;
+                originY -= currentRect.top - containerRect.top;
             }
             this._applyChange({
                 allowChangeEvent,
@@ -395,17 +415,22 @@ var PinchZoom = (function () {
          * Update transform values without checking bounds. This is only called in setTransform.
          */
         _updateTransform(scale, x, y, allowChangeEvent) {
+            let newScale = scale;
             // Avoid scaling to zero
-            if (scale < this.minScale)
-                return;
+            if (newScale < this.minScale) {
+                newScale = this.minScale;
+            }
+            if (newScale > this.maxScale) {
+                newScale = this.maxScale;
+            }
             // Return if there's no change
-            if (scale === this.scale &&
+            if (newScale === this.scale &&
                 x === this.x &&
                 y === this.y)
                 return;
             this._transform.e = x;
             this._transform.f = y;
-            this._transform.d = this._transform.a = scale;
+            this._transform.d = this._transform.a = newScale;
             this.style.setProperty('--x', this.x + 'px');
             this.style.setProperty('--y', this.y + 'px');
             this.style.setProperty('--scale', this.scale + '');
