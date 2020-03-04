@@ -308,7 +308,7 @@ var PinchZoom = (function () {
                 return MAX_SCALE;
             const value = parseFloat(attrValue);
             if (Number.isFinite(value))
-                return Math.max(MAX_SCALE, value);
+                return Math.min(MAX_SCALE, value);
             return MAX_SCALE;
         }
         set maxScale(value) {
