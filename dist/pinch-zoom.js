@@ -423,6 +423,8 @@ var PinchZoom = (function () {
             if (newScale > this.maxScale) {
                 newScale = this.maxScale;
             }
+            // Round
+            newScale = Math.round((newScale + Number.EPSILON) * 100) / 100;
             // Return if there's no change
             if (newScale === this.scale &&
                 x === this.x &&
