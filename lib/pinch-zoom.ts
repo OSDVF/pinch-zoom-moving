@@ -150,7 +150,7 @@ export default class PinchZoom extends HTMLElement {
     if (!attrValue) return MAX_SCALE;
 
     const value = parseFloat(attrValue);
-    if (Number.isFinite(value)) return Math.max(MAX_SCALE, value);
+    if (Number.isFinite(value)) return Math.min(MAX_SCALE, value);
 
     return MAX_SCALE;
   }
