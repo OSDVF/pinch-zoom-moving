@@ -296,10 +296,10 @@ export default class PinchZoom extends HTMLElement {
 
     // Avoid scaling to zero
     if (newScale < this.minScale) {
-      newScale = this.minScale;
+      return;
     }
     if (newScale > this.maxScale) {
-      newScale = this.maxScale;
+      return;
     }
 
     // Round
