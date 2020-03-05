@@ -332,6 +332,12 @@ var PinchZoom = (function () {
         scaleTo(scale, opts = {}) {
             let { originX = 0, originY = 0, } = opts;
             const { relativeTo = 'content', allowChangeEvent = false, } = opts;
+            if (scale < this.minScale) {
+                scale = this.minScale;
+            }
+            if (scale > this.maxScale) {
+                scale = this.maxScale;
+            }
             const relativeToEl = (relativeTo === 'content' ? this._positioningEl : this);
             // No content element? Fall back to just setting scale
             if (!relativeToEl || !this._positioningEl) {
@@ -416,15 +422,15 @@ var PinchZoom = (function () {
          */
         _updateTransform(scale, x, y, allowChangeEvent) {
             let newScale = scale;
-            // Avoid scaling to zero
-            if (newScale < this.minScale) {
-                newScale = this.minScale;
-            }
-            if (newScale > this.maxScale) {
-                newScale = this.maxScale;
-            }
             // Round
             newScale = Math.round((newScale + Number.EPSILON) * 100) / 100;
+            // Avoid scaling outside bounds
+            if (newScale < this.minScale) {
+                return;
+            }
+            if (newScale > this.maxScale) {
+                return;
+            }
             // Return if there's no change
             if (newScale === this.scale &&
                 x === this.x &&
