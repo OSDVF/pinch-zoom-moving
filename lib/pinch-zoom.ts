@@ -100,7 +100,7 @@ export default class PinchZoom extends HTMLElement {
     // Note this won't fire for initial contents,
     // so _stageElChange is also called in connectedCallback.
     new MutationObserver(() => this._stageElChange())
-      .observe(this, { childList: true });
+        .observe(this, { childList: true });
 
     // Watch for pointers
     const pointerTracker: PointerTracker = new PointerTracker(this, {
@@ -189,6 +189,13 @@ export default class PinchZoom extends HTMLElement {
       allowChangeEvent = false,
     } = opts;
 
+    if (scale < this.minScale) {
+      scale = this.minScale;
+    }
+    if (scale > this.maxScale) {
+      scale = this.maxScale;
+    }
+
     const relativeToEl = (relativeTo === 'content' ? this._positioningEl : this);
 
     // No content element? Fall back to just setting scale
@@ -262,10 +269,10 @@ export default class PinchZoom extends HTMLElement {
 
     // Calculate the intended position of _positioningEl.
     const matrix = createMatrix()
-      .translate(x, y)
-      .scale(scale)
-      // Undo current transform
-      .multiply(this._transform.inverse());
+        .translate(x, y)
+        .scale(scale)
+        // Undo current transform
+        .multiply(this._transform.inverse());
 
     topLeft = topLeft.matrixTransform(matrix);
     bottomRight = bottomRight.matrixTransform(matrix);
@@ -294,7 +301,10 @@ export default class PinchZoom extends HTMLElement {
   private _updateTransform(scale: number, x: number, y: number, allowChangeEvent: boolean) {
     let newScale = scale;
 
-    // Avoid scaling to zero
+    // Round
+    newScale = Math.round((newScale + Number.EPSILON) * 100) / 100;
+
+    // Avoid scaling outside bounds
     if (newScale < this.minScale) {
       return;
     }
@@ -302,14 +312,11 @@ export default class PinchZoom extends HTMLElement {
       return;
     }
 
-    // Round
-    newScale = Math.round((newScale + Number.EPSILON) * 100) / 100;
-
     // Return if there's no change
     if (
-      newScale === this.scale &&
-      x === this.x &&
-      y === this.y
+        newScale === this.scale &&
+        x === this.x &&
+        y === this.y
     ) return;
 
     this._transform.e = x;
@@ -409,16 +416,16 @@ export default class PinchZoom extends HTMLElement {
     } = opts;
 
     const matrix = createMatrix()
-      // Translate according to panning.
-      .translate(panX, panY)
-      // Scale about the origin.
-      .translate(originX, originY)
-      // Apply current translate
-      .translate(this.x, this.y)
-      .scale(scaleDiff)
-      .translate(-originX, -originY)
-      // Apply current scale.
-      .scale(this.scale);
+    // Translate according to panning.
+        .translate(panX, panY)
+        // Scale about the origin.
+        .translate(originX, originY)
+        // Apply current translate
+        .translate(this.x, this.y)
+        .scale(scaleDiff)
+        .translate(-originX, -originY)
+        // Apply current scale.
+        .scale(this.scale);
 
     // Convert the transform into basic translate & scale.
     this.setTransform({
