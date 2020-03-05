@@ -27,7 +27,7 @@ function styleInject(css, ref) {
   }
 }
 
-var css = "pinch-zoom {\r\n  display: block;\r\n  overflow: hidden;\r\n  touch-action: none;\r\n  --scale: 1;\r\n  --x: 0;\r\n  --y: 0;\r\n}\r\n\r\npinch-zoom > * {\r\n  transform: translate(var(--x), var(--y)) scale(var(--scale));\r\n  transform-origin: 0 0;\r\n  will-change: transform;\r\n}\r\n";
+var css = "pinch-zoom {\r\n    display: block;\r\n    overflow: hidden;\r\n    touch-action: none;\r\n    --scale: 1;\r\n    --x: 0;\r\n    --y: 0;\r\n}\r\n\r\npinch-zoom > * {\r\n    transform: translate3d(var(--x), var(--y), 0) scale(var(--scale));\r\n    transform-origin: 0 0;\r\n    will-change: transform;\r\n}\r\n";
 styleInject(css);
 
 const minScaleAttr = 'min-scale';
