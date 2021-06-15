@@ -279,7 +279,7 @@ class PinchZoom extends HTMLElement {
         this._transform.e = x;
         this._transform.f = y;
         this._transform.d = this._transform.a = newScale;
-        if (this._reportMoving) {
+        if (this._reportMoving && allowChangeEvent) {
             this.indicateMoving();
         }
         this.style.setProperty("--x", this.x + "px");

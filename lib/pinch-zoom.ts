@@ -388,7 +388,7 @@ export default class PinchZoom extends HTMLElement
     this._transform.f = y;
     this._transform.d = this._transform.a = newScale;
 
-    if (this._reportMoving)
+    if (this._reportMoving && allowChangeEvent)
     {
       this.indicateMoving();
     }
