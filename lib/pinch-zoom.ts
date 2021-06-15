@@ -1,19 +1,22 @@
-import PointerTracker, { Pointer } from 'pointer-tracker';
-import './styles.css';
+import PointerTracker, { Pointer } from "pointer-tracker";
+import "./styles.css";
 
-interface Point {
+interface Point
+{
   clientX: number;
   clientY: number;
 }
 
-interface ChangeOptions {
+interface ChangeOptions
+{
   /**
    * Fire a 'change' event if values are different to current values
    */
   allowChangeEvent?: boolean;
 }
 
-interface ApplyChangeOpts extends ChangeOptions {
+interface ApplyChangeOpts extends ChangeOptions
+{
   panX?: number;
   panY?: number;
   scaleDiff?: number;
@@ -21,19 +24,21 @@ interface ApplyChangeOpts extends ChangeOptions {
   originY?: number;
 }
 
-interface SetTransformOpts extends ChangeOptions {
+interface SetTransformOpts extends ChangeOptions
+{
   scale?: number;
   x?: number;
   y?: number;
 }
 
-type ScaleRelativeToValues = 'container' | 'content';
+type ScaleRelativeToValues = "container" | "content";
 
-const minScaleAttr = 'min-scale';
-const maxScaleAttr = 'max-scale';
-const reportMovingAttr = 'report-moving';
+const minScaleAttr = "min-scale";
+const maxScaleAttr = "max-scale";
+const reportMovingAttr = "report-moving";
 
-export interface ScaleToOpts extends ChangeOptions {
+export interface ScaleToOpts extends ChangeOptions
+{
   /** Transform origin. Can be a number, or string percent, eg "50%" */
   originX?: number | string;
   /** Transform origin. Can be a number, or string percent, eg "50%" */
@@ -42,12 +47,14 @@ export interface ScaleToOpts extends ChangeOptions {
   relativeTo?: ScaleRelativeToValues;
 }
 
-function getDistance(a: Point, b?: Point): number {
+function getDistance(a: Point, b?: Point): number
+{
   if (!b) return 0;
   return Math.sqrt((b.clientX - a.clientX) ** 2 + (b.clientY - a.clientY) ** 2);
 }
 
-function getMidpoint(a: Point, b?: Point): Point {
+function getMidpoint(a: Point, b?: Point): Point
+{
   if (!b) return a;
 
   return {
@@ -56,11 +63,13 @@ function getMidpoint(a: Point, b?: Point): Point {
   };
 }
 
-function getAbsoluteValue(value: string | number, max: number): number {
-  if (typeof value === 'number') return value;
+function getAbsoluteValue(value: string | number, max: number): number
+{
+  if (typeof value === "number") return value;
 
-  if (value.trim().endsWith('%')) {
-    return max * parseFloat(value) / 100;
+  if (value.trim().endsWith("%"))
+  {
+    return (max * parseFloat(value)) / 100;
   }
   return parseFloat(value);
 }
@@ -69,22 +78,29 @@ function getAbsoluteValue(value: string | number, max: number): number {
 // Given that, better to use something everything supports.
 let cachedSvg: SVGSVGElement;
 
-function getSVG(): SVGSVGElement {
-  return cachedSvg || (cachedSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'));
+function getSVG(): SVGSVGElement
+{
+  return (
+    cachedSvg ||
+    (cachedSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"))
+  );
 }
 
-function createMatrix(): SVGMatrix {
+function createMatrix(): SVGMatrix
+{
   return getSVG().createSVGMatrix();
 }
 
-function createPoint(): SVGPoint {
+function createPoint(): SVGPoint
+{
   return getSVG().createSVGPoint();
 }
 
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 999;
 
-export default class PinchZoom extends HTMLElement {
+export default class PinchZoom extends HTMLElement
+{
   // The element that we'll transform.
   // Ideally this would be shadow DOM, but we don't have the browser
   // support yet.
@@ -94,59 +110,81 @@ export default class PinchZoom extends HTMLElement {
   private _moving: boolean = false;
   private _reportMoving: boolean = false;
 
-  static get observedAttributes() { return [minScaleAttr, maxScaleAttr,reportMovingAttr]; }
+  static get observedAttributes()
+  {
+    return [minScaleAttr, maxScaleAttr, reportMovingAttr];
+  }
 
-  constructor() {
+  constructor()
+  {
     super();
 
     // Watch for children changes.
     // Note this won't fire for initial contents,
     // so _stageElChange is also called in connectedCallback.
-    new MutationObserver(() => this._stageElChange())
-        .observe(this, { childList: true });
+    new MutationObserver(() => this._stageElChange()).observe(this, {
+      childList: true,
+    });
 
     // Watch for pointers
     const pointerTracker: PointerTracker = new PointerTracker(this, {
-      start: (pointer, event) => {
+      start: (pointer, event) =>
+      {
         // We only want to track 2 pointers at most
-        if (pointerTracker.currentPointers.length === 2 || !this._positioningEl) return false;
+        if (pointerTracker.currentPointers.length === 2 || !this._positioningEl)
+          return false;
         event.preventDefault();
         return true;
       },
-      move: (previousPointers) => {
+      move: (previousPointers) =>
+      {
         this._onPointerMove(previousPointers, pointerTracker.currentPointers);
       },
-      end: (pointer, event) => {
-        debounce(this.stopIndicatingMoving,400);
-      }
+      end: (pointer, event) =>
+      {
+        if (this._reportMoving)
+        {
+          this.stopIndicatingMoving();
+        }
+      },
     });
 
-    this.addEventListener('wheel', event => this._onWheel(event));
-    this._reportMoving = this.getAttribute(reportMovingAttr) == 'yes';
+    this._reportMoving = this.getAttribute(reportMovingAttr) == "yes";
+    this.addEventListener("wheel", (event) => this._onWheel(event));
   }
 
-  async attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (name === minScaleAttr) {
-      if (this.scale < this.minScale) {
+  async attributeChangedCallback(
+    name: string,
+    oldValue: string,
+    newValue: string
+  )
+  {
+    if (name === minScaleAttr)
+    {
+      if (this.scale < this.minScale)
+      {
         this.setTransform({ scale: this.minScale });
       }
     }
-    if (name === maxScaleAttr) {
-      if (this.scale > this.maxScale) {
+    if (name === maxScaleAttr)
+    {
+      if (this.scale > this.maxScale)
+      {
         this.setTransform({ scale: this.maxScale });
       }
     }
-    if(name == reportMovingAttr)
+    if (name == reportMovingAttr)
     {
-      this._reportMoving = newValue == 'yes';
-      if(!this._reportMoving)
+      this._reportMoving = newValue == "yes";
+      if (!this._reportMoving)
       {
-        this.classList.remove('moving');
+        this.classList.remove("moving");
       }
     }
   }
 
-  get minScale(): number {
+  get minScale(): number
+  {
     const attrValue = this.getAttribute(minScaleAttr);
     if (!attrValue) return MIN_SCALE;
 
@@ -156,11 +194,13 @@ export default class PinchZoom extends HTMLElement {
     return MIN_SCALE;
   }
 
-  set minScale(value: number) {
+  set minScale(value: number)
+  {
     this.setAttribute(minScaleAttr, String(value));
   }
 
-  get maxScale(): number {
+  get maxScale(): number
+  {
     const attrValue = this.getAttribute(maxScaleAttr);
     if (!attrValue) return MAX_SCALE;
 
@@ -170,51 +210,54 @@ export default class PinchZoom extends HTMLElement {
     return MAX_SCALE;
   }
 
-  set maxScale(value: number) {
+  set maxScale(value: number)
+  {
     this.setAttribute(maxScaleAttr, String(value));
   }
 
-  connectedCallback() {
+  connectedCallback()
+  {
     this._stageElChange();
   }
 
-  get x() {
+  get x()
+  {
     return this._transform.e;
   }
 
-  get y() {
+  get y()
+  {
     return this._transform.f;
   }
 
-  get scale() {
+  get scale()
+  {
     return this._transform.a;
   }
 
   /**
    * Change the scale, adjusting x/y by a given transform origin.
    */
-  scaleTo(scale: number, opts: ScaleToOpts = {}) {
-    let {
-      originX = 0,
-      originY = 0,
-    } = opts;
+  scaleTo(scale: number, opts: ScaleToOpts = {})
+  {
+    let { originX = 0, originY = 0 } = opts;
 
-    const {
-      relativeTo = 'content',
-      allowChangeEvent = false,
-    } = opts;
+    const { relativeTo = "content", allowChangeEvent = false } = opts;
 
-    if (scale < this.minScale) {
+    if (scale < this.minScale)
+    {
       scale = this.minScale;
     }
-    if (scale > this.maxScale) {
+    if (scale > this.maxScale)
+    {
       scale = this.maxScale;
     }
 
-    const relativeToEl = (relativeTo === 'content' ? this._positioningEl : this);
+    const relativeToEl = relativeTo === "content" ? this._positioningEl : this;
 
     // No content element? Fall back to just setting scale
-    if (!relativeToEl || !this._positioningEl) {
+    if (!relativeToEl || !this._positioningEl)
+    {
       this.setTransform({ scale, allowChangeEvent });
       return;
     }
@@ -223,10 +266,12 @@ export default class PinchZoom extends HTMLElement {
     originX = getAbsoluteValue(originX, rect.width);
     originY = getAbsoluteValue(originY, rect.height);
 
-    if (relativeTo === 'content') {
+    if (relativeTo === "content")
+    {
       originX += this.x;
       originY += this.y;
-    } else {
+    } else
+    {
       const currentRect = this._positioningEl.getBoundingClientRect();
       const containerRect = this.getBoundingClientRect();
 
@@ -245,20 +290,16 @@ export default class PinchZoom extends HTMLElement {
   /**
    * Update the stage with a given scale/x/y.
    */
-  setTransform(opts: SetTransformOpts = {}) {
-    const {
-      scale = this.scale,
-      allowChangeEvent = false,
-    } = opts;
+  setTransform(opts: SetTransformOpts = {})
+  {
+    const { scale = this.scale, allowChangeEvent = false } = opts;
 
-    let {
-      x = this.x,
-      y = this.y,
-    } = opts;
+    let { x = this.x, y = this.y } = opts;
 
     // If we don't have an element to position, just set the value as given.
     // We'll check bounds later.
-    if (!this._positioningEl) {
+    if (!this._positioningEl)
+    {
       this._updateTransform(scale, x, y, allowChangeEvent);
       return;
     }
@@ -269,7 +310,8 @@ export default class PinchZoom extends HTMLElement {
 
     // Not displayed. May be disconnected or display:none.
     // Just take the values, and we'll check bounds later.
-    if (!thisBounds.width || !thisBounds.height) {
+    if (!thisBounds.width || !thisBounds.height)
+    {
       this._updateTransform(scale, x, y, allowChangeEvent);
       return;
     }
@@ -284,26 +326,30 @@ export default class PinchZoom extends HTMLElement {
 
     // Calculate the intended position of _positioningEl.
     const matrix = createMatrix()
-        .translate(x, y)
-        .scale(scale)
-        // Undo current transform
-        .multiply(this._transform.inverse());
+      .translate(x, y)
+      .scale(scale)
+      // Undo current transform
+      .multiply(this._transform.inverse());
 
     topLeft = topLeft.matrixTransform(matrix);
     bottomRight = bottomRight.matrixTransform(matrix);
 
     // Ensure _positioningEl can't move beyond out-of-bounds.
     // Correct for x
-    if (topLeft.x > thisBounds.width) {
+    if (topLeft.x > thisBounds.width)
+    {
       x += thisBounds.width - topLeft.x;
-    } else if (bottomRight.x < 0) {
+    } else if (bottomRight.x < 0)
+    {
       x += -bottomRight.x;
     }
 
     // Correct for y
-    if (topLeft.y > thisBounds.height) {
+    if (topLeft.y > thisBounds.height)
+    {
       y += thisBounds.height - topLeft.y;
-    } else if (bottomRight.y < 0) {
+    } else if (bottomRight.y < 0)
+    {
       y += -bottomRight.y;
     }
 
@@ -313,41 +359,46 @@ export default class PinchZoom extends HTMLElement {
   /**
    * Update transform values without checking bounds. This is only called in setTransform.
    */
-  private _updateTransform(scale: number, x: number, y: number, allowChangeEvent: boolean) {
+  private _updateTransform(
+    scale: number,
+    x: number,
+    y: number,
+    allowChangeEvent: boolean
+  )
+  {
     let newScale = scale;
 
     // Round
     newScale = Math.round((newScale + Number.EPSILON) * 100) / 100;
 
     // Avoid scaling outside bounds
-    if (newScale < this.minScale) {
+    if (newScale < this.minScale)
+    {
       return;
     }
-    if (newScale > this.maxScale) {
+    if (newScale > this.maxScale)
+    {
       return;
     }
 
     // Return if there's no change
-    if (
-        newScale === this.scale &&
-        x === this.x &&
-        y === this.y
-    ) return;
+    if (newScale === this.scale && x === this.x && y === this.y) return;
 
     this._transform.e = x;
     this._transform.f = y;
     this._transform.d = this._transform.a = newScale;
 
-    if(this._reportMoving)
+    if (this._reportMoving)
     {
       this.indicateMoving();
     }
-    this.style.setProperty('--x', this.x + 'px');
-    this.style.setProperty('--y', this.y + 'px');
-    this.style.setProperty('--scale', this.scale + '');
+    this.style.setProperty("--x", this.x + "px");
+    this.style.setProperty("--y", this.y + "px");
+    this.style.setProperty("--scale", this.scale + "");
 
-    if (allowChangeEvent) {
-      const event = new Event('change', { bubbles: true });
+    if (allowChangeEvent)
+    {
+      const event = new Event("change", { bubbles: true });
       this.dispatchEvent(event);
     }
   }
@@ -358,22 +409,25 @@ export default class PinchZoom extends HTMLElement {
    * require a single element to be the child of <pinch-zoom>, and
    * that's the element we pan/scale.
    */
-  private _stageElChange() {
+  private _stageElChange()
+  {
     this._positioningEl = undefined;
 
     if (this.children.length === 0) return;
 
     this._positioningEl = this.children[0];
 
-    if (this.children.length > 1) {
-      console.warn('<pinch-zoom> must not have more than one child.');
+    if (this.children.length > 1)
+    {
+      console.warn("<pinch-zoom> must not have more than one child.");
     }
 
     // Do a bounds check
     this.setTransform({ allowChangeEvent: true });
   }
 
-  private _onWheel(event: WheelEvent) {
+  private _onWheel(event: WheelEvent)
+  {
     if (!this._positioningEl) return;
     event.preventDefault();
 
@@ -381,7 +435,9 @@ export default class PinchZoom extends HTMLElement {
     let { deltaY } = event;
     const { ctrlKey, deltaMode } = event;
 
-    if (deltaMode === 1) { // 1 is "lines", 0 is "pixels"
+    if (deltaMode === 1)
+    {
+      // 1 is "lines", 0 is "pixels"
       // Firefox uses "lines" for some types of mouse
       deltaY *= 15;
     }
@@ -395,26 +451,30 @@ export default class PinchZoom extends HTMLElement {
       originY: event.clientY - currentRect.top,
       allowChangeEvent: true,
     });
-    if(this._reportMoving)
+    if (this._reportMoving)
     {
-      debounce(this.stopIndicatingMoving, 400);
+      this.stopIndicatingMoving();
     }
   }
-  stopIndicatingMoving()
+  public stopIndicatingMoving = debounce(() =>
   {
     this._moving = false;
-    this.classList.remove('moving');
-  }
+    this.classList.remove("moving");
+  }, 400);
   indicateMoving()
   {
     if (this._moving == false)
     {
       this._moving = true;
-      this.classList.add('moving');
+      this.classList.add("moving");
     }
   }
 
-  private _onPointerMove(previousPointers: Pointer[], currentPointers: Pointer[]) {
+  private _onPointerMove(
+    previousPointers: Pointer[],
+    currentPointers: Pointer[]
+  )
+  {
     if (!this._positioningEl) return;
 
     // Combine next points with previous points
@@ -434,7 +494,9 @@ export default class PinchZoom extends HTMLElement {
     const scaleDiff = prevDistance ? newDistance / prevDistance : 1;
 
     this._applyChange({
-      originX, originY, scaleDiff,
+      originX,
+      originY,
+      scaleDiff,
       panX: newMidpoint.clientX - prevMidpoint.clientX,
       panY: newMidpoint.clientY - prevMidpoint.clientY,
       allowChangeEvent: true,
@@ -442,25 +504,28 @@ export default class PinchZoom extends HTMLElement {
   }
 
   /** Transform the view & fire a change event */
-  private _applyChange(opts: ApplyChangeOpts = {}) {
+  private _applyChange(opts: ApplyChangeOpts = {})
+  {
     const {
-      panX = 0, panY = 0,
-      originX = 0, originY = 0,
+      panX = 0,
+      panY = 0,
+      originX = 0,
+      originY = 0,
       scaleDiff = 1,
       allowChangeEvent = false,
     } = opts;
 
     const matrix = createMatrix()
-    // Translate according to panning.
-        .translate(panX, panY)
-        // Scale about the origin.
-        .translate(originX, originY)
-        // Apply current translate
-        .translate(this.x, this.y)
-        .scale(scaleDiff)
-        .translate(-originX, -originY)
-        // Apply current scale.
-        .scale(this.scale);
+      // Translate according to panning.
+      .translate(panX, panY)
+      // Scale about the origin.
+      .translate(originX, originY)
+      // Apply current translate
+      .translate(this.x, this.y)
+      .scale(scaleDiff)
+      .translate(-originX, -originY)
+      // Apply current scale.
+      .scale(this.scale);
 
     // Convert the transform into basic translate & scale.
     this.setTransform({
@@ -472,10 +537,14 @@ export default class PinchZoom extends HTMLElement {
   }
 }
 
-function debounce<F extends (...params: any[]) => void>(func : F, timeout : number) : Function{
-  let timer : number;
-  return function(this: any, ...args: any[]) {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => { func.apply(this, args); }, timeout);
-  } as F;
+function debounce<F extends (...args: any) => any>(func: F, waitFor: number)
+{
+  let timeout: NodeJS.Timeout;
+
+  const debounced = (...args: any) =>
+  {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
+  return debounced as (...args: Parameters<F>) => ReturnType<F>;
 }

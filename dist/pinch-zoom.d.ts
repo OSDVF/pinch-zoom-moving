@@ -1,4 +1,4 @@
-import './styles.css';
+import "./styles.css";
 interface ChangeOptions {
     /**
      * Fire a 'change' event if values are different to current values
@@ -10,7 +10,7 @@ interface SetTransformOpts extends ChangeOptions {
     x?: number;
     y?: number;
 }
-declare type ScaleRelativeToValues = 'container' | 'content';
+declare type ScaleRelativeToValues = "container" | "content";
 export interface ScaleToOpts extends ChangeOptions {
     /** Transform origin. Can be a number, or string percent, eg "50%" */
     originX?: number | string;
@@ -53,7 +53,7 @@ export default class PinchZoom extends HTMLElement {
      */
     private _stageElChange;
     private _onWheel;
-    stopIndicatingMoving(): void;
+    stopIndicatingMoving: () => void;
     indicateMoving(): void;
     private _onPointerMove;
     /** Transform the view & fire a change event */

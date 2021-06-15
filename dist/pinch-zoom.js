@@ -215,9 +215,9 @@ var PinchZoom = (function () {
     var css = "pinch-zoom {\r\n    display: block;\r\n    overflow: hidden;\r\n    touch-action: none;\r\n    --scale: 1;\r\n    --x: 0;\r\n    --y: 0;\r\n}";
     styleInject(css);
 
-    const minScaleAttr = 'min-scale';
-    const maxScaleAttr = 'max-scale';
-    const reportMovingAttr = 'report-moving';
+    const minScaleAttr = "min-scale";
+    const maxScaleAttr = "max-scale";
+    const reportMovingAttr = "report-moving";
     function getDistance(a, b) {
         if (!b)
             return 0;
@@ -232,10 +232,10 @@ var PinchZoom = (function () {
         };
     }
     function getAbsoluteValue(value, max) {
-        if (typeof value === 'number')
+        if (typeof value === "number")
             return value;
-        if (value.trim().endsWith('%')) {
-            return max * parseFloat(value) / 100;
+        if (value.trim().endsWith("%")) {
+            return (max * parseFloat(value)) / 100;
         }
         return parseFloat(value);
     }
@@ -243,7 +243,8 @@ var PinchZoom = (function () {
     // Given that, better to use something everything supports.
     let cachedSvg;
     function getSVG() {
-        return cachedSvg || (cachedSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'));
+        return (cachedSvg ||
+            (cachedSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")));
     }
     function createMatrix() {
         return getSVG().createSVGMatrix();
@@ -260,11 +261,16 @@ var PinchZoom = (function () {
             this._transform = createMatrix();
             this._moving = false;
             this._reportMoving = false;
+            this.stopIndicatingMoving = debounce(() => {
+                this._moving = false;
+                this.classList.remove("moving");
+            }, 400);
             // Watch for children changes.
             // Note this won't fire for initial contents,
             // so _stageElChange is also called in connectedCallback.
-            new MutationObserver(() => this._stageElChange())
-                .observe(this, { childList: true });
+            new MutationObserver(() => this._stageElChange()).observe(this, {
+                childList: true,
+            });
             // Watch for pointers
             const pointerTracker = new PointerTracker(this, {
                 start: (pointer, event) => {
@@ -278,13 +284,17 @@ var PinchZoom = (function () {
                     this._onPointerMove(previousPointers, pointerTracker.currentPointers);
                 },
                 end: (pointer, event) => {
-                    debounce(this.stopIndicatingMoving, 400);
-                }
+                    if (this._reportMoving) {
+                        this.stopIndicatingMoving();
+                    }
+                },
             });
-            this.addEventListener('wheel', event => this._onWheel(event));
-            this._reportMoving = this.getAttribute(reportMovingAttr) == 'yes';
+            this._reportMoving = this.getAttribute(reportMovingAttr) == "yes";
+            this.addEventListener("wheel", (event) => this._onWheel(event));
         }
-        static get observedAttributes() { return [minScaleAttr, maxScaleAttr, reportMovingAttr]; }
+        static get observedAttributes() {
+            return [minScaleAttr, maxScaleAttr, reportMovingAttr];
+        }
         async attributeChangedCallback(name, oldValue, newValue) {
             if (name === minScaleAttr) {
                 if (this.scale < this.minScale) {
@@ -297,9 +307,9 @@ var PinchZoom = (function () {
                 }
             }
             if (name == reportMovingAttr) {
-                this._reportMoving = newValue == 'yes';
+                this._reportMoving = newValue == "yes";
                 if (!this._reportMoving) {
-                    this.classList.remove('moving');
+                    this.classList.remove("moving");
                 }
             }
         }
@@ -343,15 +353,15 @@ var PinchZoom = (function () {
          * Change the scale, adjusting x/y by a given transform origin.
          */
         scaleTo(scale, opts = {}) {
-            let { originX = 0, originY = 0, } = opts;
-            const { relativeTo = 'content', allowChangeEvent = false, } = opts;
+            let { originX = 0, originY = 0 } = opts;
+            const { relativeTo = "content", allowChangeEvent = false } = opts;
             if (scale < this.minScale) {
                 scale = this.minScale;
             }
             if (scale > this.maxScale) {
                 scale = this.maxScale;
             }
-            const relativeToEl = (relativeTo === 'content' ? this._positioningEl : this);
+            const relativeToEl = relativeTo === "content" ? this._positioningEl : this;
             // No content element? Fall back to just setting scale
             if (!relativeToEl || !this._positioningEl) {
                 this.setTransform({ scale, allowChangeEvent });
@@ -360,7 +370,7 @@ var PinchZoom = (function () {
             const rect = relativeToEl.getBoundingClientRect();
             originX = getAbsoluteValue(originX, rect.width);
             originY = getAbsoluteValue(originY, rect.height);
-            if (relativeTo === 'content') {
+            if (relativeTo === "content") {
                 originX += this.x;
                 originY += this.y;
             }
@@ -381,8 +391,8 @@ var PinchZoom = (function () {
          * Update the stage with a given scale/x/y.
          */
         setTransform(opts = {}) {
-            const { scale = this.scale, allowChangeEvent = false, } = opts;
-            let { x = this.x, y = this.y, } = opts;
+            const { scale = this.scale, allowChangeEvent = false } = opts;
+            let { x = this.x, y = this.y } = opts;
             // If we don't have an element to position, just set the value as given.
             // We'll check bounds later.
             if (!this._positioningEl) {
@@ -445,9 +455,7 @@ var PinchZoom = (function () {
                 return;
             }
             // Return if there's no change
-            if (newScale === this.scale &&
-                x === this.x &&
-                y === this.y)
+            if (newScale === this.scale && x === this.x && y === this.y)
                 return;
             this._transform.e = x;
             this._transform.f = y;
@@ -455,11 +463,11 @@ var PinchZoom = (function () {
             if (this._reportMoving) {
                 this.indicateMoving();
             }
-            this.style.setProperty('--x', this.x + 'px');
-            this.style.setProperty('--y', this.y + 'px');
-            this.style.setProperty('--scale', this.scale + '');
+            this.style.setProperty("--x", this.x + "px");
+            this.style.setProperty("--y", this.y + "px");
+            this.style.setProperty("--scale", this.scale + "");
             if (allowChangeEvent) {
-                const event = new Event('change', { bubbles: true });
+                const event = new Event("change", { bubbles: true });
                 this.dispatchEvent(event);
             }
         }
@@ -475,7 +483,7 @@ var PinchZoom = (function () {
                 return;
             this._positioningEl = this.children[0];
             if (this.children.length > 1) {
-                console.warn('<pinch-zoom> must not have more than one child.');
+                console.warn("<pinch-zoom> must not have more than one child.");
             }
             // Do a bounds check
             this.setTransform({ allowChangeEvent: true });
@@ -487,7 +495,8 @@ var PinchZoom = (function () {
             const currentRect = this._positioningEl.getBoundingClientRect();
             let { deltaY } = event;
             const { ctrlKey, deltaMode } = event;
-            if (deltaMode === 1) { // 1 is "lines", 0 is "pixels"
+            if (deltaMode === 1) {
+                // 1 is "lines", 0 is "pixels"
                 // Firefox uses "lines" for some types of mouse
                 deltaY *= 15;
             }
@@ -501,17 +510,13 @@ var PinchZoom = (function () {
                 allowChangeEvent: true,
             });
             if (this._reportMoving) {
-                debounce(this.stopIndicatingMoving, 400);
+                this.stopIndicatingMoving();
             }
-        }
-        stopIndicatingMoving() {
-            this._moving = false;
-            this.classList.remove('moving');
         }
         indicateMoving() {
             if (this._moving == false) {
                 this._moving = true;
-                this.classList.add('moving');
+                this.classList.add("moving");
             }
         }
         _onPointerMove(previousPointers, currentPointers) {
@@ -530,7 +535,9 @@ var PinchZoom = (function () {
             const newDistance = getDistance(currentPointers[0], currentPointers[1]);
             const scaleDiff = prevDistance ? newDistance / prevDistance : 1;
             this._applyChange({
-                originX, originY, scaleDiff,
+                originX,
+                originY,
+                scaleDiff,
                 panX: newMidpoint.clientX - prevMidpoint.clientX,
                 panY: newMidpoint.clientY - prevMidpoint.clientY,
                 allowChangeEvent: true,
@@ -559,12 +566,13 @@ var PinchZoom = (function () {
             });
         }
     }
-    function debounce(func, timeout) {
-        let timer;
-        return function (...args) {
-            window.clearTimeout(timer);
-            timer = window.setTimeout(() => { func.apply(this, args); }, timeout);
+    function debounce(func, waitFor) {
+        let timeout;
+        const debounced = (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), waitFor);
         };
+        return debounced;
     }
 
     customElements.define('pinch-zoom', PinchZoom);
