@@ -212,11 +212,12 @@ var PinchZoom = (function () {
       }
     }
 
-    var css = "pinch-zoom {\r\n    display: block;\r\n    overflow: hidden;\r\n    touch-action: none;\r\n    --scale: 1;\r\n    --x: 0;\r\n    --y: 0;\r\n}\r\n\r\npinch-zoom > * {\r\n    transform: translate3d(var(--x), var(--y), 0) scale(var(--scale));\r\n    transform-origin: 0 0;\r\n    will-change: transform;\r\n}\r\n";
+    var css = "pinch-zoom {\r\n    display: block;\r\n    overflow: hidden;\r\n    touch-action: none;\r\n    --scale: 1;\r\n    --x: 0;\r\n    --y: 0;\r\n}";
     styleInject(css);
 
     const minScaleAttr = 'min-scale';
     const maxScaleAttr = 'max-scale';
+    const reportMovingAttr = 'report-moving';
     function getDistance(a, b) {
         if (!b)
             return 0;
@@ -257,6 +258,8 @@ var PinchZoom = (function () {
             super();
             // Current transform.
             this._transform = createMatrix();
+            this._moving = false;
+            this._reportMoving = false;
             // Watch for children changes.
             // Note this won't fire for initial contents,
             // so _stageElChange is also called in connectedCallback.
@@ -274,10 +277,14 @@ var PinchZoom = (function () {
                 move: (previousPointers) => {
                     this._onPointerMove(previousPointers, pointerTracker.currentPointers);
                 },
+                end: (pointer, event) => {
+                    debounce(this.stopIndicatingMoving, 400);
+                }
             });
             this.addEventListener('wheel', event => this._onWheel(event));
+            this._reportMoving = this.getAttribute(reportMovingAttr) == 'yes';
         }
-        static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
+        static get observedAttributes() { return [minScaleAttr, maxScaleAttr, reportMovingAttr]; }
         async attributeChangedCallback(name, oldValue, newValue) {
             if (name === minScaleAttr) {
                 if (this.scale < this.minScale) {
@@ -287,6 +294,12 @@ var PinchZoom = (function () {
             if (name === maxScaleAttr) {
                 if (this.scale > this.maxScale) {
                     this.setTransform({ scale: this.maxScale });
+                }
+            }
+            if (name == reportMovingAttr) {
+                this._reportMoving = newValue == 'yes';
+                if (!this._reportMoving) {
+                    this.classList.remove('moving');
                 }
             }
         }
@@ -439,6 +452,9 @@ var PinchZoom = (function () {
             this._transform.e = x;
             this._transform.f = y;
             this._transform.d = this._transform.a = newScale;
+            if (this._reportMoving) {
+                this.indicateMoving();
+            }
             this.style.setProperty('--x', this.x + 'px');
             this.style.setProperty('--y', this.y + 'px');
             this.style.setProperty('--scale', this.scale + '');
@@ -484,6 +500,19 @@ var PinchZoom = (function () {
                 originY: event.clientY - currentRect.top,
                 allowChangeEvent: true,
             });
+            if (this._reportMoving) {
+                debounce(this.stopIndicatingMoving, 400);
+            }
+        }
+        stopIndicatingMoving() {
+            this._moving = false;
+            this.classList.remove('moving');
+        }
+        indicateMoving() {
+            if (this._moving == false) {
+                this._moving = true;
+                this.classList.add('moving');
+            }
         }
         _onPointerMove(previousPointers, currentPointers) {
             if (!this._positioningEl)
@@ -529,6 +558,13 @@ var PinchZoom = (function () {
                 y: matrix.f,
             });
         }
+    }
+    function debounce(func, timeout) {
+        let timer;
+        return function (...args) {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => { func.apply(this, args); }, timeout);
+        };
     }
 
     customElements.define('pinch-zoom', PinchZoom);

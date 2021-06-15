@@ -1,7 +1,7 @@
 # <pinch-zoom>
 
 A web component for pinch zooming DOM elements.
-
+This is a fork with 'moving' indication attribute.
 ## Usage
 
 ```sh

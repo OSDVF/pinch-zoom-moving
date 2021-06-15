@@ -31,6 +31,7 @@ type ScaleRelativeToValues = 'container' | 'content';
 
 const minScaleAttr = 'min-scale';
 const maxScaleAttr = 'max-scale';
+const reportMovingAttr = 'report-moving';
 
 export interface ScaleToOpts extends ChangeOptions {
   /** Transform origin. Can be a number, or string percent, eg "50%" */
@@ -90,8 +91,10 @@ export default class PinchZoom extends HTMLElement {
   private _positioningEl?: Element;
   // Current transform.
   private _transform: SVGMatrix = createMatrix();
+  private _moving: boolean = false;
+  private _reportMoving: boolean = false;
 
-  static get observedAttributes() { return [minScaleAttr, maxScaleAttr]; }
+  static get observedAttributes() { return [minScaleAttr, maxScaleAttr,reportMovingAttr]; }
 
   constructor() {
     super();
@@ -113,9 +116,13 @@ export default class PinchZoom extends HTMLElement {
       move: (previousPointers) => {
         this._onPointerMove(previousPointers, pointerTracker.currentPointers);
       },
+      end: (pointer, event) => {
+        debounce(this.stopIndicatingMoving,400);
+      }
     });
 
     this.addEventListener('wheel', event => this._onWheel(event));
+    this._reportMoving = this.getAttribute(reportMovingAttr) == 'yes';
   }
 
   async attributeChangedCallback(name: string, oldValue: string, newValue: string) {
@@ -127,6 +134,14 @@ export default class PinchZoom extends HTMLElement {
     if (name === maxScaleAttr) {
       if (this.scale > this.maxScale) {
         this.setTransform({ scale: this.maxScale });
+      }
+    }
+    if(name == reportMovingAttr)
+    {
+      this._reportMoving = newValue == 'yes';
+      if(!this._reportMoving)
+      {
+        this.classList.remove('moving');
       }
     }
   }
@@ -323,6 +338,10 @@ export default class PinchZoom extends HTMLElement {
     this._transform.f = y;
     this._transform.d = this._transform.a = newScale;
 
+    if(this._reportMoving)
+    {
+      this.indicateMoving();
+    }
     this.style.setProperty('--x', this.x + 'px');
     this.style.setProperty('--y', this.y + 'px');
     this.style.setProperty('--scale', this.scale + '');
@@ -370,13 +389,29 @@ export default class PinchZoom extends HTMLElement {
     // ctrlKey is true when pinch-zooming on a trackpad.
     const divisor = ctrlKey ? 100 : 300;
     const scaleDiff = 1 - deltaY / divisor;
-
     this._applyChange({
       scaleDiff,
       originX: event.clientX - currentRect.left,
       originY: event.clientY - currentRect.top,
       allowChangeEvent: true,
     });
+    if(this._reportMoving)
+    {
+      debounce(this.stopIndicatingMoving, 400);
+    }
+  }
+  stopIndicatingMoving()
+  {
+    this._moving = false;
+    this.classList.remove('moving');
+  }
+  indicateMoving()
+  {
+    if (this._moving == false)
+    {
+      this._moving = true;
+      this.classList.add('moving');
+    }
   }
 
   private _onPointerMove(previousPointers: Pointer[], currentPointers: Pointer[]) {
@@ -435,4 +470,12 @@ export default class PinchZoom extends HTMLElement {
       y: matrix.f,
     });
   }
+}
+
+function debounce<F extends (...params: any[]) => void>(func : F, timeout : number) : Function{
+  let timer : number;
+  return function(this: any, ...args: any[]) {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => { func.apply(this, args); }, timeout);
+  } as F;
 }

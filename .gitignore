@@ -1,2 +1,4 @@
 *.css.d.ts
 .rpt2_cache
+node_modules/
+.vscode/

@@ -6,9 +6,3 @@ pinch-zoom {
     --x: 0;
     --y: 0;
 }
-
-pinch-zoom > * {
-    transform: translate3d(var(--x), var(--y), 0) scale(var(--scale));
-    transform-origin: 0 0;
-    will-change: transform;
-}

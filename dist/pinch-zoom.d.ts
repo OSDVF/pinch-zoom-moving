@@ -22,6 +22,8 @@ export interface ScaleToOpts extends ChangeOptions {
 export default class PinchZoom extends HTMLElement {
     private _positioningEl?;
     private _transform;
+    private _moving;
+    private _reportMoving;
     static readonly observedAttributes: string[];
     constructor();
     attributeChangedCallback(name: string, oldValue: string, newValue: string): Promise<void>;
@@ -51,6 +53,8 @@ export default class PinchZoom extends HTMLElement {
      */
     private _stageElChange;
     private _onWheel;
+    stopIndicatingMoving(): void;
+    indicateMoving(): void;
     private _onPointerMove;
     /** Transform the view & fire a change event */
     private _applyChange;
